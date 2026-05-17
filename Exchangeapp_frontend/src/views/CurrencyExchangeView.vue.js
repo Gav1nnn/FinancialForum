@@ -10,6 +10,7 @@ const form = ref({
 const result = ref(null);
 const currencies = ref([]);
 const rates = ref([]);
+// 拉取可用汇率并提取所有货币选项。
 const fetchCurrencies = async () => {
     try {
         const response = await axios.get('/exchangeRates');
@@ -20,6 +21,7 @@ const fetchCurrencies = async () => {
         console.log('Failed to load currencies', error);
     }
 };
+// 根据选中的货币对进行简单换算。
 const exchange = () => {
     const rate = rates.value.find((rate) => rate.fromCurrency === form.value.fromCurrency && rate.toCurrency === form.value.toCurrency)?.rate;
     if (rate) {
@@ -29,6 +31,7 @@ const exchange = () => {
         result.value = null;
     }
 };
+// 页面加载即初始化汇率数据。
 onMounted(fetchCurrencies);
 const __VLS_fnComponent = (await import('vue')).defineComponent({});
 let __VLS_functionalComponentProps;

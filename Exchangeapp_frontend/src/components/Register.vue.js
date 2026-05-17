@@ -10,6 +10,7 @@ const form = ref({
 });
 const authStore = useAuthStore();
 const router = useRouter();
+// register 提交注册请求，成功后跳转文章页。
 const register = async () => {
     try {
         await authStore.register(form.value.username, form.value.password);

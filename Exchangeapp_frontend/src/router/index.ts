@@ -9,6 +9,7 @@ import ArticleEditorView from '../views/ArticleEditorView.vue';
 import Login from '../components/Login.vue';
 import Register from '../components/Register.vue';
 
+// routes 统一声明页面路由映射关系。
 const routes: RouteRecordRaw[] = [
   { path: '/', name: 'Home', component: HomeView },
   { path: '/exchange', name: 'CurrencyExchange', component: CurrencyExchangeView },
@@ -22,6 +23,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/register', name: 'Register', component: Register },
 ];
 
+// createRouter 使用 HTML5 history 模式。
 const router = createRouter({
   history: createWebHistory(),
   routes,

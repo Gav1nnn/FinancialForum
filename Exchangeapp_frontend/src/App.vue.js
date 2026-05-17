@@ -7,9 +7,11 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const activeIndex = ref(route.name?.toString() || 'Home');
+// 路由变化时同步更新顶部菜单选中项。
 watch(route, (newRoute) => {
     activeIndex.value = newRoute.name?.toString() || 'Home';
 });
+// 统一处理菜单点击；logout 特殊处理，其余直接按路由名跳转。
 const handleSelect = (key) => {
     if (key === 'logout') {
         authStore.logout();

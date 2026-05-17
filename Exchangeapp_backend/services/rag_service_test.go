@@ -10,12 +10,14 @@ import (
 	"testing"
 )
 
+// roundTripFunc 用于在测试中自定义 HTTP Client 的 RoundTripper。
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
 }
 
+// jsonResponse 快速构造 JSON HTTP 响应。
 func jsonResponse(t *testing.T, status int, body string) *http.Response {
 	t.Helper()
 	return &http.Response{
@@ -25,6 +27,7 @@ func jsonResponse(t *testing.T, status int, body string) *http.Response {
 	}
 }
 
+// TestEmbedTextsUsesOllamaEndpoint 验证向量接口地址与请求体格式。
 func TestEmbedTextsUsesOllamaEndpoint(t *testing.T) {
 	config.AppConfig = &config.Config{}
 	config.AppConfig.RAG.APIBase = "http://127.0.0.1:11434"
@@ -70,6 +73,7 @@ func TestEmbedTextsUsesOllamaEndpoint(t *testing.T) {
 	}
 }
 
+// TestGenerateWithChatCompletionsUsesOllamaChat 验证生成接口地址和响应解析。
 func TestGenerateWithChatCompletionsUsesOllamaChat(t *testing.T) {
 	config.AppConfig = &config.Config{}
 	config.AppConfig.RAG.APIBase = "http://127.0.0.1:11434"
@@ -124,6 +128,7 @@ func TestGenerateWithChatCompletionsUsesOllamaChat(t *testing.T) {
 	}
 }
 
+// TestRetrieveUsesSemanticSimilarityWhenKeywordsMiss 验证语义检索兜底排序。
 func TestRetrieveUsesSemanticSimilarityWhenKeywordsMiss(t *testing.T) {
 	config.AppConfig = &config.Config{}
 	config.AppConfig.RAG.APIBase = "http://127.0.0.1:11434"

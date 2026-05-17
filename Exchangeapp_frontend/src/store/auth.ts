@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axios from '../axios';
 
+// decodeUsername 从 JWT payload 中解析用户名，用于前端显示和鉴权判断。
 const decodeUsername = (token: string | null): string | null => {
   if (!token) {
     return null;
@@ -22,12 +23,15 @@ const decodeUsername = (token: string | null): string | null => {
   }
 };
 
+// useAuthStore 维护登录态、用户名及登录/注册/登出动作。
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'));
   const username = computed(() => decodeUsername(token.value));
 
+  // 只要存在 token 就视为已登录（接口权限由后端最终校验）。
   const isAuthenticated = computed(() => !!token.value);
 
+  // login 调用后端登录接口并持久化 token。
   const login = async (username: string, password: string) => {
     try {
       const response = await axios.post('/auth/login', { username, password });
@@ -38,6 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  // register 调用后端注册接口并持久化 token。
   const register = async (username: string, password: string) => {
     try {
       const response = await axios.post('/auth/register', { username, password });
@@ -48,6 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  // logout 清理本地登录状态。
   const logout = () => {
     token.value = null;
     localStorage.removeItem('token');

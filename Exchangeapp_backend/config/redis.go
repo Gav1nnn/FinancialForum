@@ -7,6 +7,7 @@ import (
 	"github.com/go-redis/redis"
 )
 
+// InitRedis 初始化 Redis 客户端并写入全局变量。
 func InitRedis() {
 
 	addr := AppConfig.Redis.Addr

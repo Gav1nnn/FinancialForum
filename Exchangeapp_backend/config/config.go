@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config 汇总应用运行所需配置。
 type Config struct {
 	App struct {
 		Name string
@@ -38,7 +39,9 @@ type Config struct {
 
 var AppConfig *Config
 
+// InitConfig 读取配置文件并应用环境变量覆盖，然后初始化基础设施连接。
 func InitConfig() {
+	// 读取本地 yml 配置。
 	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
 	viper.AddConfigPath("./config")
@@ -53,6 +56,7 @@ func InitConfig() {
 		log.Fatalf("Unable to decode into struct :%v", err)
 	}
 
+	// 优先读取环境变量，以便容器/云环境动态配置。
 	if apiKey, ok := os.LookupEnv("EXCHANGEAPP_RAG_API_KEY"); ok {
 		AppConfig.RAG.APIKey = apiKey
 	}
@@ -109,6 +113,7 @@ func InitConfig() {
 		}
 	}
 
+	// 按配置初始化 MySQL 和 Redis。
 	initDB()
 	InitRedis()
 }

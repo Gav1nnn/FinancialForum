@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Register 处理用户注册：校验参数、密码哈希、入库并返回 JWT。
 func Register(ctx *gin.Context) {
 	var user models.User
 	if err := ctx.ShouldBindJSON(&user); err != nil {
@@ -39,6 +40,7 @@ func Register(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"token": token})
 }
 
+// Login 处理用户登录：校验账号密码并签发 JWT。
 func Login(ctx *gin.Context) {
 	var input struct {
 		Username string `json:"username"`

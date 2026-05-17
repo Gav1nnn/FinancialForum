@@ -2,6 +2,7 @@ package models
 
 import "time"
 
+// ExchangeRate 对应汇率记录模型。
 type ExchangeRate struct {
 	ID           uint      `gorm:"primarykey" json:"_id"`
 	FromCurrency string    `json:"fromCurrency" binding:"required"`

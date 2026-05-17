@@ -7,11 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// assistantChatRequest 是助手问答接口的请求体。
 type assistantChatRequest struct {
 	Question string                      `json:"question" binding:"required"`
 	History  []services.AssistantMessage `json:"history"`
 }
 
+// AssistantChat 调用 RAG 服务完成问答。
 func AssistantChat(ctx *gin.Context) {
 	var request assistantChatRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
@@ -28,6 +30,7 @@ func AssistantChat(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, reply)
 }
 
+// AssistantStatus 返回助手可用性与索引状态。
 func AssistantStatus(ctx *gin.Context) {
 	status, err := services.RAG.Status(ctx.Request.Context())
 	if err != nil {

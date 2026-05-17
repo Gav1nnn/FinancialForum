@@ -43,7 +43,8 @@
   const result = ref<number | null>(null);
   const currencies = ref<string[]>([]);
   const rates = ref<ExchangeRate[]>([]);
-  
+
+  // 拉取可用汇率并提取所有货币选项。
   const fetchCurrencies = async () => {
     try{
       const response = await axios.get<ExchangeRate[]>('/exchangeRates');
@@ -53,7 +54,8 @@
       console.log('Failed to load currencies', error)
     }
   };
-  
+
+  // 根据选中的货币对进行简单换算。
   const exchange = () => {
     const rate = rates.value.find(
       (rate) => rate.fromCurrency === form.value.fromCurrency && rate.toCurrency === form.value.toCurrency
@@ -65,7 +67,8 @@
       result.value = null;
     }
   };
-  
+
+  // 页面加载即初始化汇率数据。
   onMounted(fetchCurrencies);
   </script>
   

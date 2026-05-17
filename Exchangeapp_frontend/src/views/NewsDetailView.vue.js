@@ -12,6 +12,7 @@ const authStore = useAuthStore();
 const likes = ref(0);
 const canManageArticle = ref(false);
 const { id } = route.params;
+// fetchArticle 拉取文章详情并判断是否具备编辑权限。
 const fetchArticle = async () => {
     if (!authStore.isAuthenticated) {
         ElMessage.warning('请先登录后再查看文章。');
@@ -27,6 +28,7 @@ const fetchArticle = async () => {
         console.error("Failed to load article:", error);
     }
 };
+// likeArticle 点赞后刷新点赞数展示。
 const likeArticle = async () => {
     if (!authStore.isAuthenticated) {
         ElMessage.warning('登录后才能点赞。');
@@ -41,6 +43,7 @@ const likeArticle = async () => {
         console.log('Error Liking article:', error);
     }
 };
+// fetchLike 读取文章点赞计数。
 const fetchLike = async () => {
     if (!authStore.isAuthenticated) {
         return;
@@ -53,9 +56,11 @@ const fetchLike = async () => {
         console.log('Error fetching likes:', error);
     }
 };
+// editArticle 跳转到编辑页面。
 const editArticle = () => {
     router.push({ name: 'EditArticle', params: { id } });
 };
+// 页面加载后并行请求详情和点赞数。
 onMounted(fetchArticle);
 onMounted(fetchLike);
 const __VLS_fnComponent = (await import('vue')).defineComponent({});

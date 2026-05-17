@@ -17,12 +17,14 @@ import (
 
 var cacheKey = "articles"
 
+// articlePayload 是文章创建/更新接口的请求体。
 type articlePayload struct {
 	Title   string `json:"title" binding:"required"`
 	Content string `json:"content" binding:"required"`
 	Preview string `json:"preview" binding:"required"`
 }
 
+// CreateArticle 创建新文章，并清理相关文章缓存与索引缓存。
 func CreateArticle(ctx *gin.Context) {
 	username := ctx.GetString("username")
 	if username == "" {
@@ -57,6 +59,7 @@ func CreateArticle(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, article)
 }
 
+// GetArticles 查询文章列表，优先读取 Redis 缓存。
 func GetArticles(ctx *gin.Context) {
 	cachedData, err := global.RedisDB.Get(cacheKey).Result()
 
@@ -97,6 +100,7 @@ func GetArticles(ctx *gin.Context) {
 	}
 }
 
+// GetMyArticles 查询当前登录用户发布的文章。
 func GetMyArticles(ctx *gin.Context) {
 	username := ctx.GetString("username")
 	if username == "" {
@@ -113,6 +117,7 @@ func GetMyArticles(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, articles)
 }
 
+// GetArticlesByID 根据 ID 查询单篇文章。
 func GetArticlesByID(ctx *gin.Context) {
 	id := ctx.Param("id")
 
@@ -129,6 +134,7 @@ func GetArticlesByID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, article)
 }
 
+// UpdateArticle 更新当前用户自己的文章，并失效缓存。
 func UpdateArticle(ctx *gin.Context) {
 	username := ctx.GetString("username")
 	if username == "" {
@@ -165,6 +171,7 @@ func UpdateArticle(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, article)
 }
 
+// DeleteArticle 删除当前用户自己的文章，并失效缓存。
 func DeleteArticle(ctx *gin.Context) {
 	username := ctx.GetString("username")
 	if username == "" {
@@ -191,6 +198,7 @@ func DeleteArticle(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "article deleted"})
 }
 
+// findOwnedArticle 根据文章 ID + 用户名校验所有权。
 func findOwnedArticle(id string, username string) (models.Article, error) {
 	var article models.Article
 	if err := global.Db.Where("id = ?", id).First(&article).Error; err != nil {
@@ -204,6 +212,7 @@ func findOwnedArticle(id string, username string) (models.Article, error) {
 	return article, nil
 }
 
+// handleArticleOwnershipError 统一处理文章归属相关错误。
 func handleArticleOwnershipError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
@@ -215,6 +224,7 @@ func handleArticleOwnershipError(ctx *gin.Context, err error) {
 	}
 }
 
+// clearArticleCaches 清理文章列表/点赞缓存，并触发 RAG 索引失效。
 func clearArticleCaches(articleID uint) error {
 	keys := []string{cacheKey}
 	if articleID > 0 {
@@ -229,6 +239,7 @@ func clearArticleCaches(articleID uint) error {
 	return nil
 }
 
+// likeCacheKey 生成文章点赞缓存键。
 func likeCacheKey(articleID uint) string {
 	return "article:" + strconv.FormatUint(uint64(articleID), 10) + ":likes"
 }

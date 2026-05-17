@@ -9,6 +9,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 const loading = ref(false);
 const articles = ref([]);
+// ensureAuthenticated 校验登录态，未登录时跳转登录页。
 const ensureAuthenticated = () => {
     if (authStore.isAuthenticated) {
         return true;
@@ -17,6 +18,7 @@ const ensureAuthenticated = () => {
     router.push({ name: 'Login' });
     return false;
 };
+// fetchArticles 拉取当前用户的文章列表。
 const fetchArticles = async () => {
     if (!ensureAuthenticated()) {
         return;
@@ -33,18 +35,22 @@ const fetchArticles = async () => {
         loading.value = false;
     }
 };
+// formatDate 格式化更新时间字段。
 const formatDate = (value) => {
     if (!value) {
         return '未知时间';
     }
     return new Date(value).toLocaleString();
 };
+// viewArticle 跳转文章详情页。
 const viewArticle = (id) => {
     router.push({ name: 'NewsDetail', params: { id } });
 };
+// editArticle 跳转文章编辑页。
 const editArticle = (id) => {
     router.push({ name: 'EditArticle', params: { id } });
 };
+// deleteArticle 删除文章并同步更新本地列表。
 const deleteArticle = async (id) => {
     try {
         await ElMessageBox.confirm('删除后无法恢复，确认删除这篇帖子吗？', '删除帖子', {
@@ -65,6 +71,7 @@ const deleteArticle = async (id) => {
         ElMessage.error('删除帖子失败。');
     }
 };
+// 组件加载后初始化“我的帖子”列表。
 onMounted(fetchArticles);
 const __VLS_fnComponent = (await import('vue')).defineComponent({});
 let __VLS_functionalComponentProps;

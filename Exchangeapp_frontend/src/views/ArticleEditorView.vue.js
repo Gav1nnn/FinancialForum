@@ -14,7 +14,9 @@ const form = reactive({
     preview: '',
     content: '',
 });
+// 有路由参数 id 时视为编辑模式，否则为发布模式。
 const isEditMode = computed(() => !!route.params.id);
+// ensureAuthenticated 在进入编辑/发布前校验登录态。
 const ensureAuthenticated = () => {
     if (authStore.isAuthenticated) {
         return true;
@@ -23,6 +25,7 @@ const ensureAuthenticated = () => {
     router.push({ name: 'Login' });
     return false;
 };
+// loadArticle 在编辑模式下加载原文并回填表单。
 const loadArticle = async () => {
     if (!isEditMode.value || !ensureAuthenticated()) {
         return;
@@ -43,6 +46,7 @@ const loadArticle = async () => {
         router.push({ name: 'MyPosts' });
     }
 };
+// submitArticle 根据模式执行“创建”或“更新”请求。
 const submitArticle = async () => {
     if (!ensureAuthenticated()) {
         return;
@@ -70,6 +74,7 @@ const submitArticle = async () => {
         submitting.value = false;
     }
 };
+// 进入页面时尝试加载被编辑文章。
 onMounted(loadArticle);
 const __VLS_fnComponent = (await import('vue')).defineComponent({});
 let __VLS_functionalComponentProps;

@@ -46,6 +46,7 @@ const authStore = useAuthStore();
 const loading = ref(false);
 const articles = ref<Article[]>([]);
 
+// ensureAuthenticated 校验登录态，未登录时跳转登录页。
 const ensureAuthenticated = () => {
   if (authStore.isAuthenticated) {
     return true;
@@ -56,6 +57,7 @@ const ensureAuthenticated = () => {
   return false;
 };
 
+// fetchArticles 拉取当前用户的文章列表。
 const fetchArticles = async () => {
   if (!ensureAuthenticated()) {
     return;
@@ -72,6 +74,7 @@ const fetchArticles = async () => {
   }
 };
 
+// formatDate 格式化更新时间字段。
 const formatDate = (value: string) => {
   if (!value) {
     return '未知时间';
@@ -79,14 +82,17 @@ const formatDate = (value: string) => {
   return new Date(value).toLocaleString();
 };
 
+// viewArticle 跳转文章详情页。
 const viewArticle = (id: number) => {
   router.push({ name: 'NewsDetail', params: { id } });
 };
 
+// editArticle 跳转文章编辑页。
 const editArticle = (id: number) => {
   router.push({ name: 'EditArticle', params: { id } });
 };
 
+// deleteArticle 删除文章并同步更新本地列表。
 const deleteArticle = async (id: number) => {
   try {
     await ElMessageBox.confirm('删除后无法恢复，确认删除这篇帖子吗？', '删除帖子', {
@@ -107,6 +113,7 @@ const deleteArticle = async (id: number) => {
   }
 };
 
+// 组件加载后初始化“我的帖子”列表。
 onMounted(fetchArticles);
 </script>
 

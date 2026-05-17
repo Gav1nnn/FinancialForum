@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus';
 import axios from '../axios';
 import { useAuthStore } from '../store/auth';
 const { defineProps, defineSlots, defineEmits, defineExpose, defineModel, defineOptions, withDefaults, } = await import('vue');
+// 页面状态：输入问题、会话记录、引用文献、助手能力状态。
 const router = useRouter();
 const authStore = useAuthStore();
 const question = ref('');
@@ -14,6 +15,7 @@ const retrievalMode = ref('none');
 const messages = ref([]);
 const citations = ref([]);
 const status = ref(null);
+// modeLabel 把后端返回模式转换成可读文案。
 const modeLabel = computed(() => {
     switch (mode.value) {
         case 'rag':
@@ -28,7 +30,9 @@ const modeLabel = computed(() => {
             return '待提问';
     }
 });
+// modeTagType 控制模式标签颜色。
 const modeTagType = computed(() => (mode.value === 'rag' ? 'success' : 'info'));
+// retrievalLabel 展示检索方式。
 const retrievalLabel = computed(() => {
     switch (retrievalMode.value) {
         case 'semantic':
@@ -39,6 +43,7 @@ const retrievalLabel = computed(() => {
             return '待检索';
     }
 });
+// fetchStatus 获取助手可用性和索引状态。
 const fetchStatus = async () => {
     try {
         const response = await axios.get('/assistant/status');
@@ -48,6 +53,7 @@ const fetchStatus = async () => {
         console.error('Failed to load assistant status:', error);
     }
 };
+// submitQuestion 提交流程：写入用户消息 -> 请求后端 -> 展示回答与引用。
 const submitQuestion = async () => {
     const value = question.value.trim();
     if (!value) {
@@ -86,6 +92,7 @@ const submitQuestion = async () => {
         loading.value = false;
     }
 };
+// clearConversation 清空当前会话状态。
 const clearConversation = () => {
     question.value = '';
     mode.value = 'idle';
@@ -93,6 +100,7 @@ const clearConversation = () => {
     messages.value = [];
     citations.value = [];
 };
+// openArticle 从引用卡片跳转到文章详情。
 const openArticle = (articleId) => {
     if (!authStore.isAuthenticated) {
         ElMessage.warning('请先登录后再查看原文。');
@@ -101,6 +109,7 @@ const openArticle = (articleId) => {
     }
     router.push({ name: 'NewsDetail', params: { id: articleId } });
 };
+// 页面初始化时拉取一次助手状态。
 onMounted(fetchStatus);
 const __VLS_fnComponent = (await import('vue')).defineComponent({});
 let __VLS_functionalComponentProps;

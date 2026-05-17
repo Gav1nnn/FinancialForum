@@ -29,6 +29,7 @@ const loading = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 
+// fetchArticles 获取文章列表；未登录时不发请求。
 const fetchArticles = async () => {
   if (!authStore.isAuthenticated) {
     articles.value = [];
@@ -47,6 +48,7 @@ const fetchArticles = async () => {
   }
 };
 
+// viewDetail 进入文章详情页。
 const viewDetail = (id: number) => {
   if (!authStore.isAuthenticated) {
     ElMessage.error('请先登录后再查看');
@@ -55,6 +57,7 @@ const viewDetail = (id: number) => {
   router.push({ name: 'NewsDetail', params: { id } });
 };
 
+// 组件挂载后拉取文章列表。
 onMounted(fetchArticles);
 </script>
 

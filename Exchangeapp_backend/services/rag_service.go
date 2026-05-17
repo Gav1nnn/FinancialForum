@@ -24,11 +24,13 @@ import (
 
 var tokenPattern = regexp.MustCompile(`[\p{Han}]+|[A-Za-z0-9]+`)
 
+// AssistantMessage 表示对话历史中的一条消息。
 type AssistantMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
+// AssistantCitation 表示回答引用的文章证据。
 type AssistantCitation struct {
 	ArticleID uint    `json:"articleId"`
 	Title     string  `json:"title"`
@@ -37,6 +39,7 @@ type AssistantCitation struct {
 	Score     float64 `json:"score"`
 }
 
+// AssistantReply 是问答接口返回结构。
 type AssistantReply struct {
 	Answer         string              `json:"answer"`
 	Citations      []AssistantCitation `json:"citations"`
@@ -45,6 +48,7 @@ type AssistantReply struct {
 	RetrievedCount int                 `json:"retrievedCount"`
 }
 
+// AssistantStatus 描述当前助手能力与索引状态。
 type AssistantStatus struct {
 	ChatConfigured      bool   `json:"chatConfigured"`
 	EmbeddingConfigured bool   `json:"embeddingConfigured"`
@@ -54,6 +58,7 @@ type AssistantStatus struct {
 	IndexedAt           string `json:"indexedAt,omitempty"`
 }
 
+// articleChunk 是用于检索的文章分块单元。
 type articleChunk struct {
 	ArticleID    uint
 	Title        string
@@ -66,6 +71,7 @@ type articleChunk struct {
 	HasEmbedding bool
 }
 
+// scoredChunk 是检索后的打分结果。
 type scoredChunk struct {
 	Chunk         articleChunk
 	Score         float64
@@ -73,12 +79,14 @@ type scoredChunk struct {
 	SemanticScore float64
 }
 
+// embeddingCacheEntry 是 Redis 中缓存向量的序列化结构。
 type embeddingCacheEntry struct {
 	Model     string    `json:"model"`
 	Vector    []float64 `json:"vector"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// RAGService 封装检索增强生成核心流程。
 type RAGService struct {
 	mu           sync.RWMutex
 	cachedAt     time.Time
@@ -88,6 +96,7 @@ type RAGService struct {
 	semanticMode bool
 }
 
+// NewRAGService 创建带默认超时与缓存窗口的服务实例。
 func NewRAGService() *RAGService {
 	return &RAGService{
 		cacheWindow: 2 * time.Minute,
@@ -97,6 +106,7 @@ func NewRAGService() *RAGService {
 	}
 }
 
+// Invalidate 主动清空分块缓存，触发下次请求重建索引。
 func (s *RAGService) Invalidate() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -105,6 +115,7 @@ func (s *RAGService) Invalidate() {
 	s.semanticMode = false
 }
 
+// Status 返回助手当前可用能力和索引时间信息。
 func (s *RAGService) Status(ctx context.Context) (AssistantStatus, error) {
 	chunks, semanticMode, err := s.getChunks(ctx)
 	if err != nil {
@@ -128,6 +139,7 @@ func (s *RAGService) Status(ctx context.Context) (AssistantStatus, error) {
 	return status, nil
 }
 
+// AnswerQuestion 执行完整问答流程：检索 -> 生成 -> 引用组装。
 func (s *RAGService) AnswerQuestion(ctx context.Context, question string, history []AssistantMessage) (AssistantReply, error) {
 	question = strings.TrimSpace(question)
 	if question == "" {
@@ -168,6 +180,7 @@ func (s *RAGService) AnswerQuestion(ctx context.Context, question string, histor
 	}, nil
 }
 
+// getChunks 获取文章分块缓存；缓存过期时会从数据库重建。
 func (s *RAGService) getChunks(ctx context.Context) ([]articleChunk, bool, error) {
 	s.mu.RLock()
 	if len(s.chunks) > 0 && time.Since(s.cachedAt) < s.cacheWindow {
@@ -214,6 +227,7 @@ func (s *RAGService) getChunks(ctx context.Context) ([]articleChunk, bool, error
 	if s.canUseEmbeddings() && len(built) > 0 {
 		hydrated, err := s.hydrateEmbeddings(ctx, built)
 		if err != nil {
+			// 向量构建失败时回退到关键词检索，保持可用性。
 			log.Printf("rag embedding hydration failed, falling back to lexical retrieval: %v", err)
 		} else {
 			built = hydrated
@@ -228,6 +242,7 @@ func (s *RAGService) getChunks(ctx context.Context) ([]articleChunk, bool, error
 	return append([]articleChunk(nil), s.chunks...), semanticMode, nil
 }
 
+// buildChunkTexts 将文章组织为可检索分块（标题摘要块 + 正文段落块）。
 func buildChunkTexts(article models.Article) []string {
 	base := []string{
 		fmt.Sprintf("%s\n%s", article.Title, article.Preview),
@@ -237,6 +252,7 @@ func buildChunkTexts(article models.Article) []string {
 	return append(base, paragraphs...)
 }
 
+// splitParagraphs 按段切分正文，并对超长段落做二次切片。
 func splitParagraphs(content string) []string {
 	cleaned := strings.ReplaceAll(content, "\r\n", "\n")
 	rawParagraphs := strings.Split(cleaned, "\n")
@@ -260,6 +276,7 @@ func splitParagraphs(content string) []string {
 	return paragraphs
 }
 
+// chunkLongText 按 rune 长度切分长文本，避免中文截断乱码。
 func chunkLongText(text string, maxRunes int) []string {
 	runes := []rune(text)
 	if len(runes) <= maxRunes {
@@ -277,11 +294,13 @@ func chunkLongText(text string, maxRunes int) []string {
 	return chunks
 }
 
+// chunkFingerprint 基于文章更新时间和内容生成分块指纹。
 func chunkFingerprint(article models.Article, chunkIndex int, text string) string {
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%d:%s", article.ID, article.UpdatedAt.Unix(), chunkIndex, text)))
 	return hex.EncodeToString(hash[:])
 }
 
+// buildSearchText 拼接用于检索和向量化的文本。
 func buildSearchText(parts ...string) string {
 	filtered := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -294,6 +313,7 @@ func buildSearchText(parts ...string) string {
 	return strings.Join(filtered, "\n")
 }
 
+// tokenize 把文本拆分为检索 token，兼容中英文。
 func tokenize(text string) []string {
 	lowered := strings.ToLower(text)
 	matches := tokenPattern.FindAllString(lowered, -1)
@@ -315,6 +335,7 @@ func tokenize(text string) []string {
 	return tokens
 }
 
+// containsHan 判断文本是否包含中文字符。
 func containsHan(text string) bool {
 	for _, r := range text {
 		if unicode.Is(unicode.Han, r) {
@@ -324,6 +345,7 @@ func containsHan(text string) bool {
 	return false
 }
 
+// expandHanTokens 对中文词做双字切分，提高匹配召回率。
 func expandHanTokens(text string) []string {
 	runes := []rune(text)
 	if len(runes) == 0 {
@@ -346,6 +368,7 @@ func expandHanTokens(text string) []string {
 	return tokens
 }
 
+// frequencyMap 构建 token 词频表。
 func frequencyMap(tokens []string) map[string]int {
 	freq := make(map[string]int, len(tokens))
 	for _, token := range tokens {
@@ -357,6 +380,7 @@ func frequencyMap(tokens []string) map[string]int {
 	return freq
 }
 
+// lexicalScore 计算关键词匹配分数，并对标题/摘要命中加权。
 func lexicalScore(queryFreq map[string]int, chunk articleChunk) float64 {
 	chunkFreq := frequencyMap(chunk.Tokens)
 	if len(chunkFreq) == 0 {
@@ -387,6 +411,7 @@ func lexicalScore(queryFreq map[string]int, chunk articleChunk) float64 {
 	return score
 }
 
+// retrieve 组合词法检索与语义检索并返回 TopK 结果。
 func (s *RAGService) retrieve(ctx context.Context, question string, chunks []articleChunk, semanticMode bool) ([]scoredChunk, string) {
 	queryTokens := tokenize(question)
 	queryFreq := frequencyMap(queryTokens)
@@ -412,6 +437,7 @@ func (s *RAGService) retrieve(ctx context.Context, question string, chunks []art
 	if semanticMode {
 		queryVector, err := s.embedQuery(ctx, question)
 		if err != nil {
+			// 查询向量失败时自动降级为关键词检索。
 			log.Printf("rag query embedding failed, using keyword retrieval: %v", err)
 		} else {
 			retrievalMode = "semantic"
@@ -472,6 +498,7 @@ func (s *RAGService) retrieve(ctx context.Context, question string, chunks []art
 	return filtered, retrievalMode
 }
 
+// uniqueCitations 按文章去重，生成引用列表。
 func uniqueCitations(chunks []scoredChunk) []AssistantCitation {
 	seen := make(map[uint]struct{}, len(chunks))
 	citations := make([]AssistantCitation, 0, len(chunks))
@@ -491,10 +518,12 @@ func uniqueCitations(chunks []scoredChunk) []AssistantCitation {
 	return citations
 }
 
+// roundScore 统一裁剪展示分数精度。
 func roundScore(score float64) float64 {
 	return math.Round(score*1000) / 1000
 }
 
+// clampScore 把语义分数归一化到 [0, 1]。
 func clampScore(score float64) float64 {
 	if score < 0 {
 		return 0
@@ -505,6 +534,7 @@ func clampScore(score float64) float64 {
 	return score
 }
 
+// semanticCutoff 计算语义召回阈值，过滤低相关分块。
 func semanticCutoff(maxSemantic float64) float64 {
 	if maxSemantic <= 0 {
 		return 1
@@ -512,6 +542,7 @@ func semanticCutoff(maxSemantic float64) float64 {
 	return math.Max(0.12, maxSemantic*0.7)
 }
 
+// truncate 以 rune 为单位截断文本，用于返回摘要。
 func truncate(text string, maxRunes int) string {
 	runes := []rune(strings.TrimSpace(text))
 	if len(runes) <= maxRunes {
@@ -520,6 +551,7 @@ func truncate(text string, maxRunes int) string {
 	return string(runes[:maxRunes]) + "..."
 }
 
+// generate 根据能力选择“大模型生成”或“检索式回退回答”。
 func (s *RAGService) generate(ctx context.Context, question string, history []AssistantMessage, chunks []scoredChunk) (string, string) {
 	if !s.canUseChat() {
 		return buildFallbackAnswer(question, chunks), "retrieval_only"
@@ -534,6 +566,7 @@ func (s *RAGService) generate(ctx context.Context, question string, history []As
 	return answer, "rag"
 }
 
+// buildFallbackAnswer 在生成不可用时拼装可读的检索结果回答。
 func buildFallbackAnswer(question string, chunks []scoredChunk) string {
 	builder := strings.Builder{}
 	builder.WriteString("我基于站内文章整理了与你问题最相关的信息。\n\n")
@@ -549,6 +582,7 @@ func buildFallbackAnswer(question string, chunks []scoredChunk) string {
 	return builder.String()
 }
 
+// hydrateEmbeddings 为分块加载/计算向量并写入缓存。
 func (s *RAGService) hydrateEmbeddings(ctx context.Context, chunks []articleChunk) ([]articleChunk, error) {
 	hydrated := append([]articleChunk(nil), chunks...)
 	missingIndexes := make([]int, 0)
@@ -598,6 +632,7 @@ func (s *RAGService) hydrateEmbeddings(ctx context.Context, chunks []articleChun
 	return hydrated, trueEmbeddingsOrError(hydrated)
 }
 
+// trueEmbeddingsOrError 校验所有分块都已持有向量。
 func trueEmbeddingsOrError(chunks []articleChunk) error {
 	for _, chunk := range chunks {
 		if !chunk.HasEmbedding {
@@ -607,6 +642,7 @@ func trueEmbeddingsOrError(chunks []articleChunk) error {
 	return nil
 }
 
+// loadCachedEmbedding 从 Redis 读取向量缓存。
 func (s *RAGService) loadCachedEmbedding(key string) ([]float64, bool) {
 	value, err := global.RedisDB.Get(key).Result()
 	if err != nil {
@@ -625,6 +661,7 @@ func (s *RAGService) loadCachedEmbedding(key string) ([]float64, bool) {
 	return entry.Vector, true
 }
 
+// storeCachedEmbedding 把向量按当前模型名称写入 Redis。
 func (s *RAGService) storeCachedEmbedding(key string, vector []float64) {
 	entry := embeddingCacheEntry{
 		Model:     s.embeddingModel(),
@@ -642,6 +679,7 @@ func (s *RAGService) storeCachedEmbedding(key string, vector []float64) {
 	}
 }
 
+// embedQuery 为用户问题生成查询向量。
 func (s *RAGService) embedQuery(ctx context.Context, input string) ([]float64, error) {
 	vectors, err := s.embedTexts(ctx, []string{input})
 	if err != nil {
@@ -653,6 +691,7 @@ func (s *RAGService) embedQuery(ctx context.Context, input string) ([]float64, e
 	return vectors[0], nil
 }
 
+// embedTexts 调用向量接口批量生成 embeddings。
 func (s *RAGService) embedTexts(ctx context.Context, inputs []string) ([][]float64, error) {
 	if len(inputs) == 0 {
 		return nil, nil
@@ -706,6 +745,7 @@ func (s *RAGService) embedTexts(ctx context.Context, inputs []string) ([][]float
 	return response.Embeddings, nil
 }
 
+// cosineSimilarity 计算两个向量的余弦相似度。
 func cosineSimilarity(left []float64, right []float64) float64 {
 	if len(left) == 0 || len(right) == 0 || len(left) != len(right) {
 		return 0
@@ -728,6 +768,7 @@ func cosineSimilarity(left []float64, right []float64) float64 {
 	return dot / (math.Sqrt(leftNorm) * math.Sqrt(rightNorm))
 }
 
+// generateWithChatCompletions 调用聊天接口基于上下文生成答案。
 func (s *RAGService) generateWithChatCompletions(ctx context.Context, question string, history []AssistantMessage, chunks []scoredChunk) (string, error) {
 	messages := make([]map[string]string, 0, len(history)+2)
 	messages = append(messages, map[string]string{
@@ -806,6 +847,7 @@ func (s *RAGService) generateWithChatCompletions(ctx context.Context, question s
 	return "", errors.New("ollama chat api returned empty output")
 }
 
+// extractChatMessageContent 兼容字符串与多段结构化输出格式。
 func extractChatMessageContent(raw json.RawMessage) (string, error) {
 	if len(raw) == 0 {
 		return "", nil
@@ -834,6 +876,7 @@ func extractChatMessageContent(raw json.RawMessage) (string, error) {
 	return strings.Join(segments, "\n"), nil
 }
 
+// buildPromptContext 将检索结果压缩成可控长度的提示上下文。
 func buildPromptContext(chunks []scoredChunk, maxChars int) string {
 	if maxChars <= 0 {
 		maxChars = 1800
@@ -857,6 +900,7 @@ func buildPromptContext(chunks []scoredChunk, maxChars int) string {
 	return builder.String()
 }
 
+// normalizeHistoryRole 规范化历史消息角色。
 func normalizeHistoryRole(role string) string {
 	switch role {
 	case "user", "assistant", "system", "developer":
@@ -869,6 +913,7 @@ func normalizeHistoryRole(role string) string {
 	}
 }
 
+// trimHistory 只保留最近 N 轮历史，避免提示词过长。
 func trimHistory(history []AssistantMessage, limit int) []AssistantMessage {
 	if len(history) <= limit {
 		return history
@@ -876,6 +921,7 @@ func trimHistory(history []AssistantMessage, limit int) []AssistantMessage {
 	return history[len(history)-limit:]
 }
 
+// normalizeTemperature 限制温度参数在可接受范围。
 func normalizeTemperature(value float64) float64 {
 	if value < 0 {
 		return 0
@@ -889,6 +935,7 @@ func normalizeTemperature(value float64) float64 {
 	return value
 }
 
+// apiBase 标准化模型服务基础地址。
 func (s *RAGService) apiBase() string {
 	base := strings.TrimRight(config.AppConfig.RAG.APIBase, "/")
 	if base == "" {
@@ -899,22 +946,27 @@ func (s *RAGService) apiBase() string {
 	return base
 }
 
+// chatEndpoint 返回聊天接口地址。
 func (s *RAGService) chatEndpoint() string {
 	return s.apiBase() + "/api/chat"
 }
 
+// embeddingEndpoint 返回向量接口地址。
 func (s *RAGService) embeddingEndpoint() string {
 	return s.apiBase() + "/api/embed"
 }
 
+// chatModel 返回配置中的聊天模型标识。
 func (s *RAGService) chatModel() string {
 	return strings.TrimSpace(config.AppConfig.RAG.ChatModel)
 }
 
+// embeddingModel 返回配置中的向量模型标识。
 func (s *RAGService) embeddingModel() string {
 	return strings.TrimSpace(config.AppConfig.RAG.EmbeddingModel)
 }
 
+// statusChatModel 返回可展示的聊天模型名称。
 func (s *RAGService) statusChatModel() string {
 	model := s.chatModel()
 	if model == "" {
@@ -923,6 +975,7 @@ func (s *RAGService) statusChatModel() string {
 	return model
 }
 
+// statusEmbeddingModel 返回可展示的向量检索模式名称。
 func (s *RAGService) statusEmbeddingModel() string {
 	model := s.embeddingModel()
 	if model == "" {
@@ -931,20 +984,24 @@ func (s *RAGService) statusEmbeddingModel() string {
 	return model
 }
 
+// canUseChat 判断是否具备生成能力。
 func (s *RAGService) canUseChat() bool {
 	return s.chatModel() != ""
 }
 
+// canUseEmbeddings 判断是否具备语义检索能力。
 func (s *RAGService) canUseEmbeddings() bool {
 	return s.embeddingModel() != ""
 }
 
+// setAuthorizationHeader 按需附加 Bearer API Key。
 func (s *RAGService) setAuthorizationHeader(req *http.Request) {
 	if apiKey := strings.TrimSpace(config.AppConfig.RAG.APIKey); apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 }
 
+// embeddingCacheKey 生成向量缓存键，包含模型名避免串库。
 func (s *RAGService) embeddingCacheKey(fingerprint string) string {
 	return "rag:embedding:" + s.embeddingModel() + ":" + fingerprint
 }

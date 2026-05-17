@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// CreateExchangeRate 创建一条汇率记录。
 func CreateExchangeRate(ctx *gin.Context) {
 	var exchangeRate models.ExchangeRate
 
@@ -29,6 +30,7 @@ func CreateExchangeRate(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, exchangeRate)
 }
 
+// GetExchangeRates 查询全部汇率记录。
 func GetExchangeRates(ctx *gin.Context) {
 	var exchangeRates []models.ExchangeRate
 

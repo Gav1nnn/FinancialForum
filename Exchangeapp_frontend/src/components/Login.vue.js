@@ -10,6 +10,7 @@ const form = ref({
 });
 const authStore = useAuthStore();
 const router = useRouter();
+// login 提交登录请求，成功后跳转文章页。
 const login = async () => {
     try {
         await authStore.login(form.value.username, form.value.password);
